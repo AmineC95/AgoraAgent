@@ -1,0 +1,11 @@
+@AgoraAgentBackend_HostAddress = http://localhost:5209
+
+GET {{AgoraAgentBackend_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
+
+GET {{AgoraAgentBackend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,72 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build / obj
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Rider
+.idea/
+
+# NuGet
+*.nupkg
+**/packages/*
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+package-lock.json
+
+# Quasar / Vite
+.quasar/
+dist/
+.vite/
+
+# Environment & secrets
+.env
+*.env
+appsettings.json
+appsettings.*.json
+secrets.json
+
+# Database
+*.db
+*.sqlite
+/data/
+
+# Logs
+logs/
+*.log
+
+# OS files
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Others
+coverage/
+coverage-final.json
+report.xml
+
+# Local test output
+TestResults/
+
+# JetBrains
+.idea/
+
+# Ignore local VS Code workspace settings
+.vscode/
+
+# Ignore generated files
+**/obj/**/project.assets.json
+
+# Ignore local API keys or secrets
+**/AgoraAgentBackend/Keys/

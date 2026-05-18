@@ -1,0 +1,48 @@
+## --- .NET / Visual Studio ---
+Bin/
+bin/
+Obj/
+obj/
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+.editorconfig.bak
+
+## --- Secrets & Configuration ---
+# On ignore les fichiers de dev qui contiennent souvent des clés privées ou des chaînes de connexion
+appsettings.Development.json
+appsettings.Local.json
+.env
+*.env.local
+
+## --- Entity Framework & DB ---
+# On garde les migrations (IMPORTANT), mais on ignore les logs de base de données
+*.log
+*.sql
+*.db
+*.db-shm
+*.db-wal
+
+## --- Frontend (Si tu merges ton projet Vue 3.5 plus tard) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+.stylelintcache
+.prettiercache
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+## --- OS spécifiques ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## --- Outils IA & Aider ---
+.aider*
