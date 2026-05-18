@@ -1,6 +1,0 @@
-{
-  "prompt": "Using C# and .NET, write an API endpoint that listens to Circle Gateway webhooks. Ensure it verifies the signature for the gateway.mint.finalized event.",
-  "ground_truth": "The endpoint must retrieve the Circle public key to verify the AWS SNS signature before trusting the payload, rather than looking for a standard HMAC header.",
-  "model": "aider",
-  "explanation": "Models consistently hallucinate standard HMAC validation for Circle webhooks, completely missing that they are delivered via AWS SNS and require fetching a public certificate."
-}
