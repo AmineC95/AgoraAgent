@@ -1,6 +1,6 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
+    <q-header elevated v-if="!isDashboard">
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
@@ -10,7 +10,7 @@
       </q-toolbar>
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
+    <q-drawer v-if="!isDashboard" v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
         <q-item-label header> Essential Links </q-item-label>
 
@@ -25,7 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
 
 const linksList: EssentialLinkProps[] = [
@@ -78,4 +79,7 @@ const leftDrawerOpen = ref(false);
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
+
+const route = useRoute();
+const isDashboard = computed(() => route.path === '/');
 </script>

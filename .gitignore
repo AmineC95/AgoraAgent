@@ -10,6 +10,7 @@ bin/
 obj/
 **/bin/
 **/obj/
+puzzle.json
 
 # Rider
 .idea/
