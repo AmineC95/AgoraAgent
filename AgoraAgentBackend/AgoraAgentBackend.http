@@ -9,3 +9,40 @@ GET {{AgoraAgentBackend_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+### Circle webhook simulation - initial delivery
+POST http://localhost:5000/api/webhooks/circle
+Content-Type: application/json
+x-amz-sns-message-id: TEST-MSG-1
+
+{
+	"Type": "Notification",
+	"MessageId": "TEST-MSG-1",
+	"SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService.pem",
+	"Signature": "dev-signature",
+	"payload": {
+		"event": "gateway.mint.finalized",
+		"amount": 500,
+		"walletAddress": "0xDEVTESTAGENT0000000000000000000000000000",
+		"agentId": "11111111-1111-1111-1111-111111111111"
+	}
+}
+
+### Circle webhook simulation - duplicate delivery (same message id)
+POST http://localhost:5000/api/webhooks/circle
+Content-Type: application/json
+x-amz-sns-message-id: TEST-MSG-1
+
+{
+	"Type": "Notification",
+	"MessageId": "TEST-MSG-1",
+	"SigningCertURL": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService.pem",
+	"Signature": "dev-signature",
+	"payload": {
+		"event": "gateway.mint.finalized",
+		"amount": 500,
+		"walletAddress": "0xDEVTESTAGENT0000000000000000000000000000",
+		"agentId": "11111111-1111-1111-1111-111111111111"
+	}
+}
+

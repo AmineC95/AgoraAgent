@@ -1,20 +1,36 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated v-if="!isDashboard">
+    <q-header elevated class="bg-dark text-white">
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
-        <q-toolbar-title> Quasar App </q-toolbar-title>
+        <q-toolbar-title>AGORA AGENT</q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
+        <q-space />
+
+        <q-icon
+          :name="isConnected ? 'lens' : 'lens'"
+          :color="isConnected ? 'positive' : 'grey-6'"
+          size="12px"
+        />
+        <q-btn
+          outline
+          color="secondary"
+          class="q-ml-sm"
+          label="SIMULER TRADE ARC"
+          @click="simulateTrade"
+        />
       </q-toolbar>
     </q-header>
 
-    <q-drawer v-if="!isDashboard" v-model="leftDrawerOpen" show-if-above bordered>
-      <q-list>
-        <q-item-label header> Essential Links </q-item-label>
-
-        <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" />
+    <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
+      <q-list padding>
+        <q-item clickable v-for="item in nav" :key="item.label" :to="item.to">
+          <q-item-section avatar>
+            <q-icon :name="item.icon" />
+          </q-item-section>
+          <q-item-section>{{ item.label }}</q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 
@@ -25,61 +41,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
-import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
+import { ref, computed, onMounted } from 'vue';
+import { useQuasar } from 'quasar';
+import axios from 'axios';
+import { HubConnectionState } from '@microsoft/signalr';
+import { useAgentStore } from '../stores/agentStore';
 
-const linksList: EssentialLinkProps[] = [
-  {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev',
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework',
-  },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev',
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev',
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev',
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev',
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev',
-  },
-];
-
-const leftDrawerOpen = ref(false);
-
+const leftDrawerOpen = ref(true);
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-const route = useRoute();
-const isDashboard = computed(() => route.path === '/');
+const nav = [
+  { label: 'Dashboard', to: '/', icon: 'dashboard' },
+  { label: 'Mon Portefeuille', to: '/wallet', icon: 'account_balance_wallet' },
+  { label: 'Stratégies', to: '/strategies', icon: 'insights' },
+  { label: 'Rapports', to: '/reports', icon: 'assessment' },
+];
+
+const store = useAgentStore();
+const $q = useQuasar();
+
+const isConnected = computed(() => {
+  const conn = store.connection;
+  return !!conn && conn.state === HubConnectionState.Connected;
+});
+
+const simulateTrade = async () => {
+  try {
+    const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+    await axios.post(`${base}/api/demo/trigger-trade`);
+  } catch {
+    // ignore
+  }
+};
+
+onMounted(() => {
+  $q.dark.set(true);
+  void store.connectSignalR();
+});
 </script>

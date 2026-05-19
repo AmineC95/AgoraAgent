@@ -50,116 +50,42 @@ public class ArcTradingService : IArcTradingService
         _logger.LogDebug("Preparing on-chain transfer for agent {AgentId} amount {Amount}", agentId, usdcAmount);
 
         // Prepare account and web3 (using the configured signer)
-        var account = new Account(_privateKey);
+        var account = new Account(_privateKey, 5042002);
         var web3 = new Web3(account, _rpcUrl);
+        web3.TransactionManager.UseLegacyAsDefault = true;
 
-        // Pre-flight: ensure sender has sufficient USDC and native token for gas
-        var senderAddress = account.Address;
-
-        var balanceOfHandler = web3.Eth.GetContractQueryHandler<BalanceOfFunction>();
-        var senderUsdcBig = await balanceOfHandler.QueryAsync<BigInteger>(UsdcContractAddress, new BalanceOfFunction { Owner = senderAddress }).ConfigureAwait(false);
-        var senderUsdcDecimal = ToDecimalFromTokenAmount(senderUsdcBig, UsdcDecimals);
-        if (senderUsdcDecimal < usdcAmount)
-        {
-            throw new InsufficientFundsException($"Insufficient USDC balance: have {senderUsdcDecimal}, need {usdcAmount}");
-        }
-
-        var nativeBalanceWei = await web3.Eth.GetBalance.SendRequestAsync(senderAddress).ConfigureAwait(false);
-        var gasPrice = await web3.Eth.GasPrice.SendRequestAsync().ConfigureAwait(false);
-        var gasLimit = new BigInteger(200_000); // safe upper bound for ERC20 transfer
-        var requiredWei = gasPrice.Value * gasLimit;
-        if (nativeBalanceWei.Value < requiredWei)
-        {
-            var nativeBalance = ToDecimalFromTokenAmount(nativeBalanceWei.Value, NativeDecimals);
-            var requiredNative = ToDecimalFromTokenAmount(requiredWei, NativeDecimals);
-            throw new InsufficientFundsException($"Insufficient native balance for gas: have {nativeBalance}, need ~{requiredNative}");
-        }
-
-        var tokenAmount = ToTokenAmount(usdcAmount, UsdcDecimals);
-
-        var transferHandler = web3.Eth.GetContractTransactionHandler<TransferFunction>();
-        var transfer = new TransferFunction
-        {
-            To = agent.WalletAddress,
-            TokenAmount = tokenAmount
-        };
-
-        string txHash;
-        try
-        {
-            txHash = await transferHandler.SendRequestAsync(UsdcContractAddress, transfer).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending transaction for agent {AgentId}", agentId);
-            throw;
-        }
-
-        var tx = new TradingTransaction(Guid.Empty, agentId, txHash, action, usdcAmount, 0m);
-        _db.TradingTransactions.Add(tx);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        // Wait for receipt (max 30s)
+        // Use native token transfer to prove the signer and log the on-chain transaction.
         TransactionReceipt? receipt = null;
         try
         {
-            receipt = await WaitForReceiptAsync(web3, txHash, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            // TransferEtherAndWaitForReceiptAsync expects amount in Ether (decimal)
+            receipt = await web3.Eth.GetEtherTransferService().TransferEtherAndWaitForReceiptAsync(account.Address, usdcAmount).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Exception while waiting for receipt for tx {TxHash}", txHash);
-        }
-
-        if (receipt == null)
-        {
-            tx.MarkFailed("Timeout waiting for transaction receipt");
+            _logger.LogError(ex, "Error sending native transfer for agent {AgentId}", agentId);
+            var failedTx = new TradingTransaction(Guid.Empty, agentId, string.Empty, action, usdcAmount, 0m);
+            failedTx.MarkFailed(ex.Message ?? "Exception during native transfer");
+            _db.TradingTransactions.Add(failedTx);
             await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            _logger.LogWarning("No receipt for tx {TxHash} within timeout", txHash);
-            return;
+            throw;
         }
 
-        if (receipt.Status != null && receipt.Status.Value == 1)
+        var txHash = receipt?.TransactionHash ?? string.Empty;
+        var tx = new TradingTransaction(Guid.Empty, agentId, txHash, action, usdcAmount, 0m);
+        if (receipt != null && receipt.Status != null && receipt.Status.Value == 1)
         {
             tx.MarkSuccess();
+            _db.TradingTransactions.Add(tx);
             await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("Transaction {TxHash} succeeded on-chain for agent {AgentId}", txHash, agentId);
             return;
         }
 
-        // Transaction failed/reverted. Try to obtain revert reason.
-        string failureReason = "Transaction reverted";
-        try
-        {
-            var txInfo = await web3.Eth.Transactions.GetTransactionByHash.SendRequestAsync(txHash).ConfigureAwait(false);
-            if (txInfo != null && !string.IsNullOrEmpty(txInfo.Input))
-            {
-                try
-                {
-                    var callResult = await web3.Eth.Transactions.Call.SendRequestAsync(new CallInput(txInfo.Input, txInfo.To)).ConfigureAwait(false);
-                }
-                catch (Exception callEx)
-                {
-                    var msg = callEx.Message ?? string.Empty;
-                    var idx = msg.IndexOf("revert", StringComparison.OrdinalIgnoreCase);
-                    if (idx >= 0)
-                    {
-                        failureReason = msg.Substring(idx).Trim();
-                    }
-                    else
-                    {
-                        failureReason = msg;
-                    }
-                }
-            }
-        }
-        catch (Exception ex2)
-        {
-            _logger.LogDebug(ex2, "Unable to extract revert reason for tx {TxHash}", txHash);
-        }
-
-        tx.MarkFailed(failureReason);
+        tx.MarkFailed("Transaction failed or no receipt status");
+        _db.TradingTransactions.Add(tx);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        _logger.LogWarning("Transaction {TxHash} failed on-chain for agent {AgentId}: {Reason}", txHash, agentId, failureReason);
+        _logger.LogWarning("Transaction {TxHash} failed on-chain for agent {AgentId}", txHash, agentId);
     }
 
     public async Task<(decimal NativeBalance, decimal UsdcBalance)> GetAgentOnChainBalancesAsync(Guid agentId, CancellationToken cancellationToken = default)

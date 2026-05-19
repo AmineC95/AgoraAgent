@@ -37,6 +37,9 @@ dist/
 appsettings.json
 appsettings.*.json
 secrets.json
+# Local env files
+.env.local
+.env.*
 
 # Database
 *.db

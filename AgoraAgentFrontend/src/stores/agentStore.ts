@@ -6,6 +6,13 @@ import type { components } from '../api/models';
 type AgentDto = components['schemas']['AgentDto'];
 type TradingTransactionDto = components['schemas']['TradingTransactionDto'];
 
+type BalanceUpdatedPayload = {
+  AgentId?: string;
+  agentId?: string;
+  BondBalance?: number | string;
+  bondBalance?: number | string;
+} & Record<string, unknown>;
+
 export const useAgentStore = defineStore('agent', {
   state: () => ({
     currentAgent: null as AgentDto | null,
@@ -42,7 +49,8 @@ export const useAgentStore = defineStore('agent', {
         }
       }
 
-      const hubUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/hubs/trade';
+      const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+      const hubUrl = `${base.replace(/\/$/, '')}/hubs/trade`;
       const connection = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl)
         .withAutomaticReconnect()
@@ -50,6 +58,25 @@ export const useAgentStore = defineStore('agent', {
 
       connection.on('TradeUpdated', (payload: TradingTransactionDto) => {
         this.addOrUpdateTransaction(payload);
+      });
+      connection.on('BalanceUpdated', (payload: BalanceUpdatedPayload) => {
+        try {
+          const agentId = payload?.AgentId ?? payload?.agentId;
+          const balance = payload?.BondBalance ?? payload?.bondBalance;
+          if (!agentId) return;
+          if (balance === undefined) return;
+          // Update agents list
+          const idx = this.agents.findIndex((a) => a.id === agentId);
+          if (idx >= 0) {
+            this.agents[idx] = { ...this.agents[idx], bondBalance: balance };
+          }
+          // Update current agent if matching
+          if (this.currentAgent && this.currentAgent.id === agentId) {
+            this.currentAgent = { ...this.currentAgent, bondBalance: balance };
+          }
+        } catch (error) {
+          console.error('BalanceUpdated handler error', error);
+        }
       });
 
       try {

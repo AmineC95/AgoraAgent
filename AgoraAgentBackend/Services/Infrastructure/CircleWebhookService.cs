@@ -10,8 +10,10 @@ using System.Threading.Tasks;
 using AgoraAgentBackend.Data;
 using AgoraAgentBackend.Domain.Entities;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 namespace AgoraAgentBackend.Services.Infrastructure;
 
@@ -19,13 +21,17 @@ public class CircleWebhookService : ICircleWebhookService
 {
     private readonly ApplicationDbContext _db;
     private readonly IHttpClientFactory? _httpClientFactory;
+    private readonly IHubContext<TradeHub>? _hubContext;
     private readonly ILogger<CircleWebhookService> _logger;
+    private readonly IHostEnvironment? _env;
 
-    public CircleWebhookService(ApplicationDbContext db, IHttpClientFactory httpClientFactory, ILogger<CircleWebhookService> logger)
+    public CircleWebhookService(ApplicationDbContext db, IHttpClientFactory httpClientFactory, IHubContext<TradeHub> hubContext, ILogger<CircleWebhookService> logger, IHostEnvironment env)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
+        _hubContext = hubContext;
         _logger = logger;
+        _env = env;
     }
 
     // Protected constructor used for testing where an HttpClientFactory is not needed
@@ -34,6 +40,7 @@ public class CircleWebhookService : ICircleWebhookService
         _db = db;
         _httpClientFactory = null;
         _logger = logger;
+        _env = null;
     }
 
     public async Task<bool> HandleAsync(HttpRequest request, CancellationToken cancellationToken = default)
@@ -54,10 +61,17 @@ public class CircleWebhookService : ICircleWebhookService
 
         try
         {
-            if (!await VerifySignatureAsync(request, body, cancellationToken).ConfigureAwait(false))
+            if (_env?.IsDevelopment() == true)
             {
-                _logger.LogWarning("Invalid signature on Circle webhook");
-                return false;
+                _logger.LogInformation("Development environment: skipping SNS signature verification");
+            }
+            else
+            {
+                if (!await VerifySignatureAsync(request, body, cancellationToken).ConfigureAwait(false))
+                {
+                    _logger.LogWarning("Invalid signature on Circle webhook");
+                    return false;
+                }
             }
         }
         catch (Exception ex)
@@ -166,6 +180,22 @@ public class CircleWebhookService : ICircleWebhookService
             }
 
             _logger.LogInformation("Agent {AgentId} credited {Amount} USDC from Circle gateway.mint.finalized", agent.Id, amount);
+
+            // Emit SignalR event to notify frontend of updated balance (if hub context is available)
+            try
+            {
+                if (_hubContext != null)
+                {
+                    var signalrPayload = new { AgentId = agent.Id, BondBalance = agent.BondBalance };
+                    _logger.LogInformation("Emitting BalanceUpdated SignalR event for Agent {AgentId} with balance {BondBalance}", agent.Id, agent.BondBalance);
+                    await _hubContext.Clients.All.SendAsync("BalanceUpdated", signalrPayload, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to emit BalanceUpdated SignalR event for Agent {AgentId}", agent.Id);
+            }
+
             return true;
         }
         catch (Exception ex)

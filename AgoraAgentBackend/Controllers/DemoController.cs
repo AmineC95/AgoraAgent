@@ -5,6 +5,8 @@ using AgoraAgentBackend.Domain.DTOs;
 using AgoraAgentBackend.Domain.Entities;
 using AgoraAgentBackend.Domain.Enums;
 using AgoraAgentBackend.Services.Infrastructure;
+using AgoraAgentBackend.Services.Blockchain;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -17,40 +19,36 @@ public class DemoController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly IHubContext<TradeHub> _hub;
+    private readonly IArcTradingService _arcTradingService;
 
-    public DemoController(ApplicationDbContext db, IHubContext<TradeHub> hub)
+    public DemoController(ApplicationDbContext db, IHubContext<TradeHub> hub, IArcTradingService arcTradingService)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _hub = hub ?? throw new ArgumentNullException(nameof(hub));
+        _arcTradingService = arcTradingService ?? throw new ArgumentNullException(nameof(arcTradingService));
     }
 
     [HttpPost("trigger-trade")]
     public async Task<IActionResult> TriggerTrade()
     {
-        // Get first agent if any, otherwise mock a GUID
         var agent = await _db.Agents.OrderBy(a => a.Name).FirstOrDefaultAsync().ConfigureAwait(false);
-        var agentId = agent != null ? agent.Id : Guid.NewGuid();
+        if (agent == null) return BadRequest("No agent configured to execute on-chain trade");
 
-        // Create a simulated trading transaction
-        var txHash = "SIMULATED_" + Guid.NewGuid().ToString("N");
-        var tx = new TradingTransaction(Guid.Empty, agentId, txHash, TradeAction.Buy, 150m, 1m);
+        // Execute a real on-chain native transfer (0.01 ETH)
+        await _arcTradingService.ExecuteTradeAsync(agent.Id, TradeAction.Buy, 0.01m).ConfigureAwait(false);
 
-        _db.TradingTransactions.Add(tx);
-        await _db.SaveChangesAsync().ConfigureAwait(false);
+        // Return the latest transaction for the agent
+        var lastTx = await _db.TradingTransactions
+            .Where(t => t.AgentId == agent.Id)
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync().ConfigureAwait(false);
 
-        // Broadcast initial pending transaction
-        await _hub.Clients.All.SendAsync("TradeUpdated", tx.ToDto()).ConfigureAwait(false);
+        if (lastTx != null)
+        {
+            try { await _hub.Clients.All.SendAsync("TradeUpdated", lastTx.ToDto()).ConfigureAwait(false); } catch { }
+            return Ok(lastTx.ToDto());
+        }
 
-        // Simulate network validation delay
-        await Task.Delay(2500).ConfigureAwait(false);
-
-        // Mark success and broadcast update
-        tx.MarkSuccess();
-        _db.TradingTransactions.Update(tx);
-        await _db.SaveChangesAsync().ConfigureAwait(false);
-
-        await _hub.Clients.All.SendAsync("TradeUpdated", tx.ToDto()).ConfigureAwait(false);
-
-        return Ok(tx.ToDto());
+        return Ok();
     }
 }

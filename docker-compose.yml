@@ -4,6 +4,6 @@ services:
     restart: always
     environment:
       MYSQL_DATABASE: 'agora_db'
-      MYSQL_ROOT_PASSWORD: 'ton_password_ultra_secret'
+      MYSQL_ROOT_PASSWORD: 'REMPLACER_PAR_ENV_VAR'
     ports:
       - '3306:3306'
