@@ -16,10 +16,10 @@ Agora Agent is an open-source Proof-of-Concept that demonstrates autonomous, LLM
 
 ```mermaid
 flowchart LR
-  U[User / Dashboard] -->|prompt| F[Frontend: Vue 3 + Quasar + Pinia]
-  F -->|HTTP POST /api/demo/trigger-trade| B[Backend: ASP.NET Core (.NET 11)]
-  B -->|LLM request| L[Groq / Llama3]
-  B -->|sign & send tx| A[Arc Testnet]
+  U["User / Dashboard"] -->|prompt| F["Frontend: Vue 3 + Quasar + Pinia"]
+  F -->|HTTP POST /api/demo/trigger-trade| B["Backend: ASP.NET Core (.NET 11)"]
+  B -->|LLM request| L["Groq / Llama3"]
+  B -->|sign & send tx| A["Arc Testnet"]
   A -->|tx receipt| B
   B -->|SignalR: TradeUpdated| F
   F -->|UI update| U
