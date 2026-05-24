@@ -4,8 +4,8 @@
       <div class="col-12 col-md-4">
         <q-card dark>
           <q-card-section>
-            <div class="text-h6 text-weight-bold">FONDS DISPONIBLES</div>
-            <div class="text-subtitle2 q-mt-xs">BOND BALANCE</div>
+            <div class="text-h6 text-weight-bold">AVAILABLE TREASURY</div>
+            <div class="text-subtitle2 q-mt-xs">Bond Balance</div>
 
             <div class="row items-center q-mt-md">
               <div class="text-h4 text-weight-bold">{{ formattedBalance }}</div>
@@ -13,14 +13,8 @@
             </div>
 
             <svg viewBox="0 0 100 30" preserveAspectRatio="none" v-if="sparkPath">
-              <path
-                :d="sparkPath"
-                stroke="var(--q-primary)"
-                stroke-width="1.6"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
+              <path :d="sparkPath" stroke="var(--q-primary)" stroke-width="1.6" fill="none" stroke-linecap="round"
+                stroke-linejoin="round" />
             </svg>
           </q-card-section>
         </q-card>
@@ -29,49 +23,37 @@
       <div class="col-12 col-md-8">
         <q-card dark flat bordered>
           <q-card-section class="row items-center justify-between">
-            <div class="text-h6 text-weight-bold">
-              FLUX DE TRANSACTIONS TEMPS RÉEL (ARC NETWORK)
+            <div>
+              <div class="text-h6 text-weight-bold">LIVE ON-CHAIN ACTIVITY (ARC NETWORK)</div>
+              <div class="text-subtitle2 q-mt-xs">Autonomous trading decisions powered by Llama3 and executed on Arc
+                testnet.</div>
             </div>
           </q-card-section>
 
           <q-separator />
 
           <q-card-section>
-            <q-table
-              :rows="transactions"
-              :columns="columns"
-              row-key="id"
-              dense
-              flat
-              dark
-              :row-class="rowClass"
-            >
+            <q-table :rows="transactions" :columns="columns" row-key="id" dense flat dark :row-class="rowClass">
               <template v-slot:body-cell-createdAt="props">
                 <div class="mono">{{ formatTime(props.row.createdAt ?? '') }}</div>
               </template>
 
               <template v-slot:body-cell-action="props">
                 <div class="row items-center">
-                  <q-icon
-                    :name="
-                      (props.row.action ?? 'Buy') === 'Buy' ? 'arrow_upward' : 'arrow_downward'
-                    "
-                    :color="(props.row.action ?? 'Buy') === 'Buy' ? 'accent' : 'negative'"
-                  />
+                  <q-icon :name="(props.row.action ?? 'Buy') === 'Buy' ? 'arrow_upward' : 'arrow_downward'
+                    " :color="(props.row.action ?? 'Buy') === 'Buy' ? 'accent' : 'negative'" />
                   <span class="q-ml-xs">{{ props.row.action ?? '' }}</span>
                 </div>
               </template>
 
               <template v-slot:body-cell-status="props">
-                <div
-                  :class="[
-                    (props.row.status ?? '').toLowerCase().includes('success')
-                      ? 'text-positive'
-                      : (props.row.status ?? '').toLowerCase().includes('pending')
-                        ? 'text-warning'
-                        : '',
-                  ]"
-                >
+                <div :class="[
+                  (props.row.status ?? '').toLowerCase().includes('success')
+                    ? 'text-positive'
+                    : (props.row.status ?? '').toLowerCase().includes('pending')
+                      ? 'text-warning'
+                      : '',
+                ]">
                   {{ props.row.status }}
                 </div>
               </template>
@@ -99,7 +81,7 @@ export default defineComponent({
     const store = useAgentStore();
 
     const transactions = computed<TradingTransactionDto[]>(() => store.transactions ?? []);
-    const displayBalance = computed(() => store.currentAgent?.bondBalance ?? 0);
+    const displayBalance = computed(() => Number(store.bondBalance ?? store.agent?.bondBalance ?? 0));
 
     const columns = [
       { name: 'createdAt', label: 'TIME', field: 'createdAt', sortable: true },
