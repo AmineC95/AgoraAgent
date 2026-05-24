@@ -54,7 +54,7 @@ Components:
 ### Clone
 
 ```bash
-git clone https://github.com/<your-org>/AgoraAgent.git
+git clone https://github.com/AmineC95/AgoraAgent.git
 cd AgoraAgent
 ```
 
@@ -153,8 +153,7 @@ Suggested workflow:
 
 ## Credits
 
-- **Author:** GitHub Copilot
-- **Contributors:** See Git history and open PR list.
+- **Author:** AmineC95
 
 ---
 
